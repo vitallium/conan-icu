@@ -1,4 +1,4 @@
-from conans import ConanFile
+from conans import ConanFile, ConfigureEnvironment
 import os
 from conans.tools import download, unzip, replace_in_file, check_md5
 
@@ -46,9 +46,16 @@ class IcuConan(ConanFile):
         self.run("devenv %s %s" % (sln_file, command_line))
 
     def build_with_configure(self):
-        pass
+        env = ConfigureEnvironment(self.deps_cpp_info, self.settings)
+        self.run("chmod +x icu/source/runConfigureICU icu/source/configure icu/source/install-sh")
+        self.run("%s icu/source/runConfigureICU Linux --prefix=%s --enable-shared=yes --enable-tests=no --enable-samples=no" % (env.command_line, self.package_folder))
+        self.run("%s make" % env.command_line)
+        self.run("%s make install" % env.command_line)
 
     def package(self):
+        if self.settings.os != "Windows":
+            return
+
         self.copy("*.h", "include", src="icu/include", keep_path=True)
         if self.settings.arch == "x86_64":
             build_suffix = "64"
@@ -57,7 +64,7 @@ class IcuConan(ConanFile):
 
         if self.options.shared:
             self.copy(pattern="*.dll", dst="bin", src=("icu/bin%s" % build_suffix), keep_path=False)
-            
+
         self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % build_suffix), keep_path=False)
 
     def package_info(self):

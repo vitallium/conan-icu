@@ -1,5 +1,6 @@
 from conans import ConanFile, ConfigureEnvironment
 import os
+from glob import glob
 from conans.tools import download, unzip, os_info
 
 class IcuConan(ConanFile):
@@ -11,6 +12,7 @@ class IcuConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False]}
     default_options = "shared=True"
+    generators = "cmake"
 
     def source(self):
         zip_name = "icu4c-%s-src.zip" % self.version.replace(".", "_")
@@ -29,7 +31,7 @@ class IcuConan(ConanFile):
             self.build_windows()
         else:
             self.build_with_configure()
-    
+
     def build_windows(self):
         sln_file = "%s\\icu\\source\\allinone\\allinone.sln" % self.conanfile_directory
         if self.settings.arch == "x86_64":
@@ -37,12 +39,26 @@ class IcuConan(ConanFile):
         else:
             arch = "Win32"
 
-        # upgrade projects 
+        # upgrade projects
         command_line = "/upgrade"
         self.run("devenv %s %s" % (sln_file, command_line))
 
-        # and build
-        command_line = "/build \"Release|%s\" /project i18n" % arch
+        runtime_map = {
+            "MDd": "MultiThreadedDebugDLL",
+            "MD": "MultiThreadedDLL",
+            "MTd": "MultiThreadedDebug",
+            "MT": "MultiThreaded"
+        }
+        runtime = runtime_map[str(self.settings.compiler.runtime)]
+        project_file_paths = glob("*.vcxproj")
+        for file_path in project_file_paths:
+            encoding = self.detect_by_bom(file_path, "utf-8")
+            patched_content = self.load(file_path, encoding)
+            patched_content = re.sub("(?<=<RuntimeLibrary>)[^<]*", runtime, patched_content)
+            self.save(file_path, patched_content, encoding)
+
+        # build
+        command_line = "/build \"%s|%s\" /project i18n" % (self.settings.build_type, arch)
         self.run("devenv %s %s" % (sln_file, command_line))
 
     def normalize_prefix_path(self, p):
@@ -93,10 +109,11 @@ class IcuConan(ConanFile):
         else:
             build_suffix = ""
 
-        if self.options.shared:
-            self.copy(pattern="*.dll", dst="bin", src=("icu/bin%s" % build_suffix), keep_path=False)
-
+        self.copy(pattern="*.dll", dst="bin", src=("icu/bin%s" % build_suffix), keep_path=False)
         self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % build_suffix), keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = ["icuin", "icuuc", "icudt"]
+        debug_suffix = ""
+        if self.settings.build_type == "Debug":
+            debug_suffix = "d"
+        self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix]

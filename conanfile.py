@@ -83,6 +83,8 @@ class IcuConan(ConanFile):
             conf_name = 'MacOSX'
         elif os_info.is_windows:
             conf_name = 'MinGW'
+        elif os_info.is_linux and self.settings.compiler == "gcc":
+            conf_name = 'Linux/gcc'
         else:
             conf_name = self.settings.os
 

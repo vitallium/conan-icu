@@ -89,7 +89,7 @@ class IcuConan(ConanFile):
             conf_name = self.settings.os
 
         env = ConfigureEnvironment(self.deps_cpp_info, self.settings)
-        command_env = env.command_line
+        command_env = env.command_line_env
         if os_info.is_windows:
             command_env += " &&"
 

@@ -93,10 +93,7 @@ class IcuConan(ConanFile):
         if os_info.is_windows:
             command_env += " &&"
 
-        self.run("which gcc")
-        self.run("gcc --version")
         self.run("chmod +x icu/source/runConfigureICU icu/source/configure icu/source/install-sh")
-        print   ("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
         self.run("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
         self.run("%s make -j %s" % (command_env, cpu_count()))
         self.run("%s make install" % command_env)

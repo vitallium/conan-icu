@@ -1,7 +1,7 @@
 from conans import ConanFile, ConfigureEnvironment
 import os
 from glob import glob
-from conans.tools import download, unzip, os_info
+from conans.tools import download, unzip, os_info, cpu_count
 
 class IcuConan(ConanFile):
     name = "icu"
@@ -96,7 +96,7 @@ class IcuConan(ConanFile):
         self.run("chmod +x icu/source/runConfigureICU icu/source/configure icu/source/install-sh")
         print   ("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
         self.run("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
-        self.run("%s make" % command_env)
+        self.run("%s make -j %s" % (command_env, cpu_count()))
         self.run("%s make install" % command_env)
 
     def package(self):

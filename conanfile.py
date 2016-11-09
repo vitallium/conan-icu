@@ -113,7 +113,10 @@ class IcuConan(ConanFile):
         self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % build_suffix), keep_path=False)
 
     def package_info(self):
-        debug_suffix = ""
-        if self.settings.build_type == "Debug":
-            debug_suffix = "d"
-        self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix]
+        if os_info.is_windows:
+            debug_suffix = ""
+            if self.settings.build_type == "Debug":
+                debug_suffix = "d"
+            self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix]
+        else:
+            self.cpp_info.libs = ["icui18n", "icuuc", "icudata"]

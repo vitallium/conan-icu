@@ -1,7 +1,7 @@
 from conans import ConanFile, ConfigureEnvironment
 import os
 from glob import glob
-from conans.tools import download, unzip, os_info
+from conans.tools import download, unzip, os_info, cpu_count
 
 class IcuConan(ConanFile):
     name = "icu"
@@ -83,20 +83,19 @@ class IcuConan(ConanFile):
             conf_name = 'MacOSX'
         elif os_info.is_windows:
             conf_name = 'MinGW'
+        elif os_info.is_linux and self.settings.compiler == "gcc":
+            conf_name = 'Linux/gcc'
         else:
             conf_name = self.settings.os
 
         env = ConfigureEnvironment(self.deps_cpp_info, self.settings)
-        command_env = env.command_line
+        command_env = env.command_line_env
         if os_info.is_windows:
             command_env += " &&"
 
-        self.run("which gcc")
-        self.run("gcc --version")
         self.run("chmod +x icu/source/runConfigureICU icu/source/configure icu/source/install-sh")
-        print   ("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
         self.run("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
-        self.run("%s make" % command_env)
+        self.run("%s make -j %s" % (command_env, cpu_count()))
         self.run("%s make install" % command_env)
 
     def package(self):
@@ -113,7 +112,10 @@ class IcuConan(ConanFile):
         self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % build_suffix), keep_path=False)
 
     def package_info(self):
-        debug_suffix = ""
-        if self.settings.build_type == "Debug":
-            debug_suffix = "d"
-        self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix]
+        if os_info.is_windows:
+            debug_suffix = ""
+            if self.settings.build_type == "Debug":
+                debug_suffix = "d"
+            self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix]
+        else:
+            self.cpp_info.libs = ["icui18n", "icuuc", "icudata"]

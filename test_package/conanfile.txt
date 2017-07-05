@@ -1,5 +1,5 @@
 [requires]
-icu/57.1@vitallium/stable
+icu/59.1@vitallium/stable
 
 [generators]
 cmake

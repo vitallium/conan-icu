@@ -5,10 +5,10 @@ from conans.tools import download, unzip, os_info, cpu_count
 
 class IcuConan(ConanFile):
     name = "icu"
-    version = "57.1"
+    version = "59.1"
     branch = "master"
     url = "http://github.com/vitallium/conan-icu"
-    license = "http://source.icu-project.org/repos/icu/icu/tags/release-57-1/LICENSE"
+    license = "http://source.icu-project.org/repos/icu/tags/release-59-1/icu4c/LICENSE"
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False]}
     default_options = "shared=True"
@@ -58,8 +58,8 @@ class IcuConan(ConanFile):
             self.save(file_path, patched_content, encoding)
 
         # build
-        command_line = "/build \"%s|%s\" /project i18n" % (self.settings.build_type, arch)
-        self.run("devenv %s %s" % (sln_file, command_line))
+        command_line = "/t:makedata /p:configuration=%s /property:Platform=%s" % (self.settings.build_type, arch)
+        self.run("msbuild %s /property:MultiProcessorCompilation=true %s" % (sln_file, command_line))
 
     def normalize_prefix_path(self, p):
         if os_info.is_windows:
@@ -104,18 +104,19 @@ class IcuConan(ConanFile):
 
         self.copy("*.h", "include", src="icu/include", keep_path=True)
         if self.settings.arch == "x86_64":
-            build_suffix = "64"
+            arch_suffix = "64"
         else:
-            build_suffix = ""
+            arch_suffix = ""
 
-        self.copy(pattern="*.dll", dst="bin", src=("icu/bin%s" % build_suffix), keep_path=False)
-        self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % build_suffix), keep_path=False)
+        match_pattern = "icu(?:dt|in|uc)\\d{0,2}\\.(?:dll|lib)"
+        self.copy(pattern="*.dll", dst="bin", src=("icu/bin%s" % arch_suffix), keep_path=False)
+        self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % arch_suffix), keep_path=False)
 
     def package_info(self):
         if os_info.is_windows:
             debug_suffix = ""
             if self.settings.build_type == "Debug":
                 debug_suffix = "d"
-            self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix]
+            self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix, "icudt"]
         else:
             self.cpp_info.libs = ["icui18n", "icuuc", "icudata"]

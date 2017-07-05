@@ -6,7 +6,7 @@ username = os.getenv("CONAN_USERNAME", "vitallium")
 
 class IcuConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    requires = "icu/57.1@%s/%s" % (username, channel)
+    requires = "icu/59.1@%s/%s" % (username, channel)
     generators = "cmake"
 
     def build(self):

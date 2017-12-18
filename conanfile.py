@@ -1,7 +1,10 @@
-from conans import ConanFile, ConfigureEnvironment
 import os
 from glob import glob
+
+from conans import ConanFile
 from conans.tools import download, unzip, os_info, cpu_count
+
+from vcproj.project import Project
 
 class IcuConan(ConanFile):
     name = "icu"
@@ -9,6 +12,7 @@ class IcuConan(ConanFile):
     branch = "master"
     url = "http://github.com/vitallium/conan-icu"
     license = "http://source.icu-project.org/repos/icu/tags/release-59-1/icu4c/LICENSE"
+    description = "ICU is a mature, widely used set of C/C++ and Java libraries providing Unicode and Globalization support for software applications."
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False]}
     default_options = "shared=True"
@@ -39,10 +43,6 @@ class IcuConan(ConanFile):
         else:
             arch = "Win32"
 
-        # upgrade projects
-        command_line = "/upgrade"
-        self.run("devenv %s %s" % (sln_file, command_line))
-
         runtime_map = {
             "MDd": "MultiThreadedDebugDLL",
             "MD": "MultiThreadedDLL",
@@ -50,12 +50,13 @@ class IcuConan(ConanFile):
             "MT": "MultiThreaded"
         }
         runtime = runtime_map[str(self.settings.compiler.runtime)]
-        project_file_paths = glob("*.vcxproj")
+        project_file_paths = glob("**/*.vcxproj", recursive=True)
         for file_path in project_file_paths:
-            encoding = self.detect_by_bom(file_path, "utf-8")
-            patched_content = self.load(file_path, encoding)
-            patched_content = re.sub("(?<=<RuntimeLibrary>)[^<]*", runtime, patched_content)
-            self.save(file_path, patched_content, encoding)
+            p = Project(file_path)
+            p.set_windows_sdk_version('10.0.16299.0')
+            p.set_platform_toolset('v141')
+            p.set_runtime_library(runtime)
+            p.save()
 
         # build
         command_line = "/t:makedata /p:configuration=%s /property:Platform=%s" % (self.settings.build_type, arch)
@@ -73,30 +74,31 @@ class IcuConan(ConanFile):
             return p
 
     def build_with_configure(self):
-        flags = "--prefix='%s' --enable-tests=no --enable-samples=no" % self.normalize_prefix_path(self.package_folder)
-        if self.options.shared == 'True':
-            flags += ' --disable-static --enable-shared'
-        else:
-            flags += ' --enable-static --disable-shared'
+        pass
+        # flags = "--prefix='%s' --enable-tests=no --enable-samples=no" % self.normalize_prefix_path(self.package_folder)
+        # if self.options.shared == 'True':
+        #     flags += ' --disable-static --enable-shared'
+        # else:
+        #     flags += ' --enable-static --disable-shared'
 
-        if os_info.is_macos:
-            conf_name = 'MacOSX'
-        elif os_info.is_windows:
-            conf_name = 'MinGW'
-        elif os_info.is_linux and self.settings.compiler == "gcc":
-            conf_name = 'Linux/gcc'
-        else:
-            conf_name = self.settings.os
+        # if os_info.is_macos:
+        #     conf_name = 'MacOSX'
+        # elif os_info.is_windows:
+        #     conf_name = 'MinGW'
+        # elif os_info.is_linux and self.settings.compiler == "gcc":
+        #     conf_name = 'Linux/gcc'
+        # else:
+        #     conf_name = self.settings.os
 
-        env = ConfigureEnvironment(self.deps_cpp_info, self.settings)
-        command_env = env.command_line_env
-        if os_info.is_windows:
-            command_env += " &&"
+        # env = ConfigureEnvironment(self.deps_cpp_info, self.settings)
+        # command_env = env.command_line_env
+        # if os_info.is_windows:
+        #     command_env += " &&"
 
-        self.run("chmod +x icu/source/runConfigureICU icu/source/configure icu/source/install-sh")
-        self.run("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
-        self.run("%s make -j %s" % (command_env, cpu_count()))
-        self.run("%s make install" % command_env)
+        # self.run("chmod +x icu/source/runConfigureICU icu/source/configure icu/source/install-sh")
+        # self.run("%s sh icu/source/runConfigureICU %s %s" % (command_env, conf_name, flags))
+        # self.run("%s make -j %s" % (command_env, cpu_count()))
+        # self.run("%s make install" % command_env)
 
     def package(self):
         if self.settings.compiler != "Visual Studio":

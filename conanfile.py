@@ -1,10 +1,13 @@
+#!/usr/bin/env python
+
 import os
+import fnmatch
 from glob import glob
 
 from conans import ConanFile
 from conans.tools import download, unzip, os_info, cpu_count
 
-from vcproj.project import Project
+from vcproj import Project
 
 class IcuConan(ConanFile):
     name = "icu"
@@ -17,6 +20,7 @@ class IcuConan(ConanFile):
     options = {"shared": [True, False]}
     default_options = "shared=True"
     generators = "cmake"
+    exports = ["vcproj/*.py"]
 
     def source(self):
         zip_name = "icu4c-%s-src.zip" % self.version.replace(".", "_")
@@ -37,7 +41,7 @@ class IcuConan(ConanFile):
             self.build_with_configure()
 
     def build_windows(self):
-        sln_file = "%s\\icu\\source\\allinone\\allinone.sln" % self.conanfile_directory
+        sln_file = "%s\\icu\\source\\allinone\\allinone.sln" % self.source_folder
         if self.settings.arch == "x86_64":
             arch = "x64"
         else:
@@ -50,13 +54,7 @@ class IcuConan(ConanFile):
             "MT": "MultiThreaded"
         }
         runtime = runtime_map[str(self.settings.compiler.runtime)]
-        project_file_paths = glob("**/*.vcxproj", recursive=True)
-        for file_path in project_file_paths:
-            p = Project(file_path)
-            p.set_windows_sdk_version('10.0.16299.0')
-            p.set_platform_toolset('v141')
-            p.set_runtime_library(runtime)
-            p.save()
+        self.patch_vcproj(self.source_folder, runtime)
 
         # build
         command_line = "/t:makedata /p:configuration=%s /property:Platform=%s" % (self.settings.build_type, arch)
@@ -110,7 +108,7 @@ class IcuConan(ConanFile):
         else:
             arch_suffix = ""
 
-        match_pattern = "icu(?:dt|in|uc)\\d{0,2}\\.(?:dll|lib)"
+        # match_pattern = "icu(?:dt|in|uc)\\d{0,2}\\.(?:dll|lib)"
         self.copy(pattern="*.dll", dst="bin", src=("icu/bin%s" % arch_suffix), keep_path=False)
         self.copy(pattern="*.lib", dst="lib", src=("icu/lib%s" % arch_suffix), keep_path=False)
 
@@ -122,3 +120,12 @@ class IcuConan(ConanFile):
             self.cpp_info.libs = ["icuin" + debug_suffix, "icuuc" + debug_suffix, "icudt"]
         else:
             self.cpp_info.libs = ["icui18n", "icuuc", "icudata"]
+
+    def patch_vcproj(self, root, runtime):
+        for root, _, filenames in os.walk(root):
+            for filename in fnmatch.filter(filenames, '*.vcxproj'):
+                p = Project(os.path.join(root, filename))
+                p.set_windows_sdk_version('10.0.16299.0')
+                p.set_platform_toolset('v141')
+                p.set_runtime_library(runtime)
+                p.save()
